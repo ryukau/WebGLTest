@@ -109,8 +109,10 @@ class Shape {
     draw(time, camera) {
         var model_view_projection = mat4.create()
         this.resetTransform()
-        mat4.fromZRotation(this.model_matrix, time)
-        this.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
+        // mat4.fromZRotation(this.model_matrix, time)
+        // mat4.rotateZ(this.model_matrix, this.model_matrix, time * 2.48521)
+        mat4.rotateY(this.model_matrix, this.model_matrix, time * 0.48521)
+        // this.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
         mat4.mul(model_view_projection, camera.view_projection, this.model_matrix)
         gl.uniformMatrix4fv(this.uniform_mvpMatrix, false, model_view_projection)
         //gl.drawArrays(gl.TRIANGLES, 0, 3)
@@ -168,5 +170,120 @@ class Rectangle extends Shape {
             0, 2, 3
         ]
         this.setIndexBuffer(this.index)
+    }
+}
+
+class Circle extends Shape {
+    constructor(vertex_shader, fragment_shader) {
+        super(vertex_shader, fragment_shader)
+
+        this.vertices_position = []
+        this.vertices_color = []
+        this.index = []
+
+        this.create()
+
+        this.setAttribute("position", this.vertices_position, 3)
+        this.setAttribute("color", this.vertices_color, 4)
+        this.setIndexBuffer(this.index)
+    }
+
+    create() {
+        var div = 128
+        var tp_div = 2 * Math.PI / div
+        var r = 0.1
+
+        var sin, cos, theta
+        this.vertices_position.push(0, 0, 0) // 中央
+        this.vertices_color.push(1, 1, 1, 1) // 中央
+        for (var i = 0; i < div; ++i) {
+            theta = tp_div * i
+            sin = Math.sin(theta)
+            cos = Math.cos(theta)
+
+            this.vertices_position.push(
+                r * cos,
+                r * sin,
+                0
+            )
+
+            this.vertices_color.push(
+                0.5 * sin + 0.5,
+                0.5 * sin + 0.5,
+                0.5 * cos + 0.5,
+                1
+            )
+        }
+
+        for (var i = 1; i < div; ++i) {
+            this.index.push(0, i, i + 1)
+        }
+        this.index.push(0, div, 1)
+    }
+}
+
+class Torus extends Shape {
+    constructor(vertex_shader, fragment_shader) {
+        super(vertex_shader, fragment_shader)
+
+        this.vertices_position = []
+        this.vertices_color = []
+        this.index = []
+
+        this.create()
+
+        this.setAttribute("position", this.vertices_position, 3)
+        this.setAttribute("color", this.vertices_color, 4)
+        this.setIndexBuffer(this.index)
+    }
+
+    create() {
+        var div_a = 128
+        var div_b = 128
+        var tp_div_a = 2 * Math.PI / div_a
+        var tp_div_b = 2 * Math.PI / div_b
+        var r_a = 1
+        var r_b = 0.3
+
+        var theta_a, theta_b, x, y, z, w
+        for (var i = 0; i <= div_a; ++i) {
+            theta_a = tp_div_a * i
+            x = Math.cos(theta_a)
+            y = Math.sin(theta_a)
+
+            for (var j = 0; j <= div_b; ++j) {
+                theta_b = tp_div_b * j
+                w = r_b * Math.cos(theta_b) + r_a
+                z = r_b * Math.sin(theta_b)
+
+                this.vertices_position.push(
+                    x * w,
+                    y * w,
+                    z
+                )
+
+                this.vertices_color.push(
+                    0.5 * x + 0.5,
+                    0.5 * x + 0.5,
+                    0.5 * y + 0.5,
+                    1
+                )
+            }
+        }
+
+        // d--c
+        // |  |
+        // a--b
+        var a, b, c, d
+        for (var i = 0; i <= div_a; ++i) {
+            for (var j = 0; j < div_b; ++j) {
+                a = i * div_a + j
+                b = a + 1
+                c = b + div_b
+                d = a + div_b
+                this.index.push(a, b, c)
+                this.index.push(a, c, d)
+            }
+        }
     }
 }

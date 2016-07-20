@@ -10,8 +10,10 @@ canvas.height = height
 var gl = canvas.getContext("webgl")
 document.body.appendChild(canvas)
 
-gl.enable(gl.CULL_FACE)
+// gl.enable(gl.CULL_FACE)
+// gl.frontFace(gl.CCW)
 gl.enable(gl.DEPTH_TEST)
+gl.depthFunc(gl.LEQUAL)
 
 gl.clearColor(1, 1, 1, 1)
 gl.clear(gl.COLOR_BUFFER_BIT)
@@ -37,7 +39,7 @@ void main(void) {
     gl_FragColor = vColor;
 }
 `
-var shape = new Rectangle(vertex_shader, fragment_shader)
+var shape = new Torus(vertex_shader, fragment_shader)
 var camera = new Camera(aspect_ratio)
 
 // ---
@@ -47,9 +49,10 @@ animate()
 function animate() {
     var time = Date.now() * 0.001
 
-    for (var i = 0; i < 3; i += 0.1) {
-        shape.draw(time + i, camera)
-    }
+    // for (var i = 0; i < 3; i += 0.1) {
+    //     shape.draw(time + i, camera)
+    // }
+    shape.draw(time, camera)
 
     gl.flush()
 
