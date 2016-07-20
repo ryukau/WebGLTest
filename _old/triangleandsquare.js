@@ -10,6 +10,9 @@ canvas.height = height
 var gl = canvas.getContext("webgl")
 document.body.appendChild(canvas)
 
+gl.enable(gl.CULL_FACE)
+gl.enable(gl.DEPTH_TEST)
+
 gl.clearColor(1, 1, 1, 1)
 gl.clear(gl.COLOR_BUFFER_BIT)
 
@@ -23,6 +26,7 @@ class Shader {
         this.attribute = new Map()
         this.uniform = new Map()
         this.model_matrix = mat4.create()
+        this.index_length = 0
 
         this.compileVertexShader(vertex_shader)
         this.compileFragmentShader(fragment_shader)
@@ -106,6 +110,31 @@ class Shader {
         gl.bindBuffer(gl.ARRAY_BUFFER, null)
         return vbo
     }
+
+    setIndexBuffer(index) {
+        var ibo = this.createIBO(index)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo)
+        this.index_length = index.length
+    }
+
+    createIBO(data) {
+        var ibo = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(data), gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+        return ibo
+    }
+
+    draw(time, camera) {
+        var model_view_projection = mat4.create()
+        this.resetTransform()
+        mat4.fromZRotation(this.model_matrix, time)
+        this.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
+        mat4.mul(model_view_projection, camera.view_projection, this.model_matrix)
+        gl.uniformMatrix4fv(this.uniform_mvpMatrix, false, model_view_projection)
+        //gl.drawArrays(gl.TRIANGLES, 0, 3)
+        gl.drawElements(gl.TRIANGLES, this.index_length, gl.UNSIGNED_SHORT, 0)
+    }
 }
 
 var vertex_shader = `
@@ -133,39 +162,67 @@ var shader = new Shader(vertex_shader, fragment_shader)
 
 // ---
 // triangle
-var vertices_position = [
-    0, 1.732, 0,
-    1, 0, 0,
-    -1, 0, 0
-]
-shader.setAttribute("position", vertices_position, 3)
+// var triangle_vertices_position = [
+//     0, 1.732, 0,
+//     1, 0, 0,
+//     -1, 0, 0
+// ]
+// shader.setAttribute("position", triangle_vertices_position, 3)
 
-var vertices_color = [
-    1.0, 0.0, 0.0, 1.0,
-    0.0, 1.0, 0.0, 1.0,
-    0.0, 0.0, 1.0, 1.0
-]
-shader.setAttribute("color", vertices_color, 4)
+// var triangle_vertices_color = [
+//     1.0, 0.0, 0.0, 1.0,
+//     0.0, 1.0, 0.0, 1.0,
+//     0.0, 0.0, 1.0, 1.0
+// ]
+// shader.setAttribute("color", triangle_vertices_color, 4)
 
 // ---
-// model, view, projection
-var view = mat4.create()
-var eye = vec3.fromValues(0, 0, 10) // Position of the camera
-var center = vec3.fromValues(0, 0, 0) //Point the camera is looking at
-var up = vec3.fromValues(0, 1, 0) // 画面の上となる方向。
-mat4.lookAt(view, eye, center, up)
+// rectangle
+var rectangle_vertices_position = [
+    0.0, 1.0, 0.0,
+    1.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0,
+    0.0, -1.0, 0.0
+]
+shader.setAttribute("position", rectangle_vertices_position, 3)
+
+var rectangle_vertices_color = [
+    1.0, 0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0, 1.0,
+    0.0, 0.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0
+]
+shader.setAttribute("color", rectangle_vertices_color, 4)
+
+var index = [
+    1, 0, 2,
+    1, 2, 3
+]
+shader.setIndexBuffer(index)
+
+// ---
+// camera
+class Camera {
+    constructor(aspect_ratio) {
+        this.view = mat4.create()
+        this.eye = vec3.fromValues(0, 0, 10) // Position of the camera
+        this.center = vec3.fromValues(0, 0, 0) //Point the camera is looking at
+        this.up = vec3.fromValues(0, 1, 0) // 画面の上となる方向。
+        mat4.lookAt(this.view, this.eye, this.center, this.up)
+
+        this.projection = mat4.create()
+        mat4.perspective(this.projection, angleToRadian(65), aspect_ratio, 0.001, 1000)
+
+        this.view_projection = mat4.create()
+        mat4.mul(this.view_projection, this.projection, this.view)
+    }
+}
 
 function angleToRadian(angle) {
     return Math.PI * angle / 180
 }
 
-var projection = mat4.create()
-mat4.perspective(projection, angleToRadian(65), aspect_ratio, 0.001, 1000)
-
-var view_projection = mat4.create()
-mat4.mul(view_projection, projection, view)
-
-var model_view_projection = mat4.create()
+var camera = new Camera(aspect_ratio)
 
 // ---
 // draw
@@ -174,26 +231,9 @@ animate()
 function animate() {
     var time = Date.now() * 0.001
 
-    shader.resetTransform()
-    mat4.fromZRotation(shader.model_matrix, time)
-    shader.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
-    mat4.mul(model_view_projection, view_projection, shader.model_matrix)
-    gl.uniformMatrix4fv(shader.uniform_mvpMatrix, false, model_view_projection)
-    gl.drawArrays(gl.TRIANGLES, 0, 3)
-
-    shader.resetTransform()
-    mat4.fromZRotation(shader.model_matrix, time + Math.PI * 2 / 3)
-    shader.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
-    mat4.mul(model_view_projection, view_projection, shader.model_matrix)
-    gl.uniformMatrix4fv(shader.uniform_mvpMatrix, false, model_view_projection)
-    gl.drawArrays(gl.TRIANGLES, 0, 3)
-
-    shader.resetTransform()
-    mat4.fromZRotation(shader.model_matrix, time + Math.PI * 4 / 3)
-    shader.translate(vec3.fromValues(3 * Math.sin(time * 0.711), 0, 0))
-    mat4.mul(model_view_projection, view_projection, shader.model_matrix)
-    gl.uniformMatrix4fv(shader.uniform_mvpMatrix, false, model_view_projection)
-    gl.drawArrays(gl.TRIANGLES, 0, 3)
+    for (var i = 0; i < 3; i += 0.1) {
+        shader.draw(time + i, camera)
+    }
 
     gl.flush()
 
